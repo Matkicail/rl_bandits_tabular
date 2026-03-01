@@ -73,6 +73,7 @@ A few things worth trying:
 - **Cliff Walking:** Set ε to 0.01 and watch SARSA and Q-learning converge. Set it to 0.4 and watch them diverge dramatically.
 
 ## Companion Article
+https://medium.com/@mk6420/teaching-machines-to-think-for-themselves-an-interactive-guide-to-reinforcement-learning-0eb17bcd8145?postPublishedType=initial
 
 This repo accompanies a Medium post walking through the concepts and results in detail:
 
