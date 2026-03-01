@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Introduction to Reinforcement Learning</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <h1>An Interactive Introduction to<br><span>Reinforcement Learning</span></h1>
+    <p class="subtitle">
+      From multi-armed bandits to ice walking — learn how agents make decisions,
+      explore their environments, and improve over time. No deep learning required.
+    </p>
+  </div>
+</header>
+
+<!-- Section 0: What is RL? -->
+<section id="intro">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label">Foundation</div>
+      <h2 class="section-title">What is Reinforcement Learning?</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        Reinforcement Learning (RL) is a branch of machine learning where an <strong>agent</strong>
+        learns to make decisions by interacting with an <strong>environment</strong>. Unlike supervised
+        learning, where a teacher provides correct answers, an RL agent learns from the consequences
+        of its own actions — through <strong>trial and error</strong>.
+      </p>
+      <p>
+        The core loop is beautifully simple. At each time step, the agent observes the current
+        <em>state</em> of the environment, takes an <em>action</em>, and receives two things back:
+        a <em>reward</em> signal (a number indicating how good or bad that action was) and the
+        new <em>state</em> it has transitioned into.
+      </p>
+    </div>
+
+    <div class="rl-loop-diagram">
+      <canvas id="rl-loop-diagram"></canvas>
+    </div>
+
+    <div class="prose">
+      <p>
+        The agent's single objective: <strong>maximise the total reward it accumulates over time</strong>.
+        Not just the immediate reward from the next action, but the cumulative sum of all future rewards.
+        This is what makes RL fundamentally different from greedy optimisation — the agent must learn
+        to sacrifice short-term reward for long-term gain.
+      </p>
+    </div>
+
+    <div class="concept-grid">
+      <div class="concept-card">
+        <span class="concept-icon"></span>
+        <h4>Agent</h4>
+        <p>The learner and decision-maker. It observes, acts, and updates its strategy based on rewards received.</p>
+      </div>
+      <div class="concept-card">
+        <span class="concept-icon"></span>
+        <h4>Environment</h4>
+        <p>Everything outside the agent. It receives actions and returns new states and reward signals.</p>
+      </div>
+      <div class="concept-card">
+        <span class="concept-icon"></span>
+        <h4>Reward Function</h4>
+        <p>A scalar signal from the environment after each action. The agent's goal is to maximise the sum of these over time.</p>
+      </div>
+      <div class="concept-card">
+        <span class="concept-icon"></span>
+        <h4>Policy</h4>
+        <p>The agent's strategy — a mapping from states to actions. Learning a good policy is the central challenge of RL.</p>
+      </div>
+      <div class="concept-card">
+        <span class="concept-icon"></span>
+        <h4>Value Function</h4>
+        <p>An estimate of how much total future reward the agent can expect from a given state (or state-action pair).</p>
+      </div>
+      <div class="concept-card">
+        <span class="concept-icon"></span>
+        <h4>Exploration vs Exploitation</h4>
+        <p>The fundamental tension: should the agent try something new (explore) or stick with what it knows works (exploit)?</p>
+      </div>
+    </div>
+
+    <div class="prose">
+      <p>
+        This framework turns out to be extraordinarily general. RL is how DeepMind's AlphaGo learned
+        to defeat the world champion at Go — a game with more board positions than atoms in the universe.
+        It is how self-driving systems learn to navigate roads they have never seen. It powers YouTube's
+        recommendation algorithm, deciding which video to show you next to maximise engagement. In
+        finance, RL agents learn exploratory pricing strategies and dynamic portfolio allocation. In
+        fraud detection, RL decides which suspicious cases to escalate so the system catches novel fraud
+        patterns rather than only the ones it already knows about. Wherever there is a sequence of
+        decisions under uncertainty, RL is a natural fit.
+      </p>
+      <p>
+        A word of honesty: most RL success stories depend heavily on <strong>simulation</strong>. AlphaGo
+        played millions of games against itself. Self-driving stacks train in virtual cities before
+        touching real roads. Off-policy methods like Q-learning are powerful precisely because they
+        can learn from simulated or historical data without ever deploying a live policy. On-policy
+        learning in the real world — where the environment drifts, data is expensive, and mistakes
+        have consequences — is a genuinely hard problem and an active area of research. The non-stationary
+        bandits section below gives you a small taste of why.
+      </p>
+      <p>
+        In the sections that follow, we'll build intuition for each of these concepts interactively.
+        We start with the <strong>multi-armed bandit</strong> — the simplest RL setting, where there are
+        no states, just a single repeated decision. Then we introduce <strong>Markov Decision Processes</strong>,
+        which add states and transitions, and explore how agents learn optimal behaviour through Q-learning.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- Section 1: Multi-Armed Bandits -->
+<section id="bandits">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label">Part I</div>
+      <h2 class="section-title">The Multi-Armed Bandit Problem</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        Imagine you're standing in front of a row of slot machines. Each machine pays out at a different,
+        unknown rate. You have a limited number of pulls.
+        <strong>How do you maximise your total reward?</strong>
+      </p>
+      <p>
+        This is the <strong>multi-armed bandit (MAB)</strong> problem — the simplest meaningful setting in
+        reinforcement learning. There are no states, no transitions, just a single repeated decision:
+        <strong>which arm do I pull next?</strong>
+      </p>
+      <p>
+        Each arm <em>k</em> has a true mean reward <code>q*(k)</code> which is unknown to the agent. The agent
+        maintains an estimate <code>Q(k)</code> based on observed rewards. Below you can see a randomly generated
+        set of arm values — the <strong>hidden truth</strong> the agent must discover. The whiskers show the
+        ±1σ reward distribution around each arm's mean.
+      </p>
+
+      <div class="callout">
+        <strong>Key Insight:</strong> Every exploration strategy represents a different answer to:
+        "How should I balance what I know against what I might learn?"
+      </div>
+
+      <p>We compare four classic strategies:</p>
+      <p>
+        <strong>Pure Greedy</strong> always picks the arm with the highest current estimate.
+        <strong>ε-Greedy</strong> picks the best arm most of the time but explores randomly with probability ε.
+        <strong>UCB</strong> selects the arm that maximises estimated value plus an exploration bonus.
+        <strong>Boltzmann</strong> converts Q-values into a probability distribution using temperature τ.
+      </p>
+
+      <div class="math-block">
+        ε-Greedy: &nbsp; A = argmax_a Q(a) with prob (1-ε), &nbsp; random with prob ε<br><br>
+        UCB1: &nbsp;&nbsp;&nbsp;&nbsp; A = argmax_a [ Q(a) + c × √( ln(t) / N(a) ) ]<br><br>
+        Boltzmann: P(a) = exp(Q(a)/τ) / Σ_b exp(Q(b)/τ)
+      </div>
+    </div>
+
+    <div class="sim-card">
+      <h3>Simulation: Compare Exploration Strategies</h3>
+
+      <div class="prose" style="max-width:none; margin-bottom:20px;">
+        <p>
+          <strong>The environment:</strong> a row of <em>k</em> slot machines. Each arm has a hidden true
+          payout drawn from a normal distribution N(0, 1). When you pull arm <em>a</em>, you receive a
+          reward drawn from N(q*(a), 1) — the true value plus noise. The agent cannot see the true values;
+          it must estimate them from experience. The goal is to accumulate the most reward over a fixed
+          number of steps.
+        </p>
+      </div>
+
+      <p style="font-size:14px; color: var(--text-secondary); margin-bottom: 12px;">
+        Below are the true arm values <code style="font-family:var(--mono);font-size:13px;color:var(--accent-cyan);background:rgba(57,210,192,0.08);padding:2px 6px;border-radius:4px;">q*(a)</code>
+        with ±1σ reward distributions. This is what the agent must discover through interaction.
+      </p>
+
+      <div class="arm-viz-container">
+        <canvas id="mab-arms-chart"></canvas>
+      </div>
+      <div style="text-align:center; margin: 10px 0 20px;">
+        <button class="run-btn" id="mab-generate" style="background: var(--accent-purple); font-size:13px; padding: 8px 16px;">Generate New Arms</button>
+      </div>
+
+      <div class="prose" style="max-width:none; margin-bottom:20px;">
+        <p>
+          <strong>Arms</strong> — the number of slot machines (actions). More arms means a harder
+          exploration problem because the agent has more options to try before it can be confident
+          it has found the best one.
+          <strong>Steps</strong> — how many total pulls the agent gets. Short horizons punish
+          over-exploration; long horizons let even slow strategies converge.
+          <strong>Runs</strong> — independent repetitions averaged together. Averaging smooths out
+          randomness so you see the true performance differences between strategies rather than noise.
+        </p>
+        <p>
+          <strong>ε (epsilon)</strong> — the probability of exploring a random arm instead of exploiting
+          the current best estimate. Higher ε means more exploration, which helps find the best arm
+          faster but wastes more pulls on bad arms. Too low and the agent may never discover a superior arm.
+          <strong>UCB c</strong> — the exploration weight in Upper Confidence Bound. Larger c gives more
+          bonus to under-explored arms, encouraging the agent to try uncertain options before committing.
+          <strong>Boltzmann τ (temperature)</strong> — controls how sharply the agent favours high-value arms.
+          High τ makes the selection nearly uniform (maximum exploration). Low τ approaches pure greedy.
+        </p>
+      </div>
+
+      <div class="controls">
+        <div class="control-group"><label>Arms</label><input type="number" id="mab-arms" value="10" min="2" max="20"></div>
+        <div class="control-group"><label>Steps</label><input type="number" id="mab-steps" value="1000" min="100" max="5000" step="100"></div>
+        <div class="control-group"><label>Runs (avg)</label><input type="number" id="mab-runs" value="200" min="10" max="1000" step="10"></div>
+        <div class="control-group"><label>ε value</label><input type="number" id="mab-epsilon" value="0.1" min="0.01" max="0.5" step="0.01"></div>
+        <div class="control-group"><label>UCB c</label><input type="number" id="mab-ucb-c" value="2" min="0.1" max="5" step="0.1"></div>
+        <div class="control-group"><label>Boltzmann τ</label><input type="number" id="mab-tau" value="0.5" min="0.05" max="5" step="0.05"></div>
+        <button class="run-btn" id="mab-run">Run Simulation</button>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="mab-chart"></canvas>
+        <div class="legend" id="mab-legend"></div>
+      </div>
+
+      <table class="strategy-table" id="mab-table">
+        <thead><tr><th>Strategy</th><th>Final Avg Reward</th><th>Total Reward</th><th>Optimal %</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Section 2: Non-Stationarity -->
+<section id="nonstationarity">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label">Part II</div>
+      <h2 class="section-title">Non-Stationary Environments</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        So far we assumed each arm has a <em>fixed</em> true reward. But what if the environment changes?
+        In a <strong>non-stationary</strong> problem, the true values drift over time — an arm that was
+        great yesterday might be mediocre today.
+      </p>
+      <p>
+        The key implication: <strong>agents must never stop exploring</strong>. Strategies that gradually
+        reduce exploration converge to stale policies. Strategies that maintain constant exploration,
+        or that weight recent observations more heavily, adapt far better.
+      </p>
+
+      <div class="callout">
+        <strong>Key Insight:</strong> In non-stationary environments, forgetting old data is just as
+        important as collecting new data. A constant step-size α (exponential recency-weighted average)
+        naturally down-weights stale observations.
+      </div>
+
+      <div class="math-block">
+        Sample average (stationary): &nbsp; Q(a) ← Q(a) + (1/N(a)) × [R - Q(a)]<br><br>
+        Constant step-size (non-stationary): &nbsp; Q(a) ← Q(a) + α × [R - Q(a)]
+      </div>
+    </div>
+
+    <div class="sim-card">
+      <h3>Simulation: Tracking a Drifting Target</h3>
+
+      <div class="prose" style="max-width:none; margin-bottom:20px;">
+        <p>
+          <strong>The environment:</strong> identical to the stationary bandit above, except that after
+          every single step each arm's true value drifts by a small random amount drawn from N(0, σ).
+          Over time these random walks cause the best arm to change unpredictably. An agent that stopped
+          exploring after "solving" the initial problem will keep pulling an arm whose value has drifted
+          away from the top.
+        </p>
+      </div>
+
+      <div class="prose" style="max-width:none; margin-bottom:20px;">
+        <p>
+          <strong>Drift σ</strong> — the standard deviation of the random walk applied to each arm
+          per step. Larger σ means the environment changes faster, making the problem harder and
+          penalising agents that rely on stale estimates.
+          <strong>Step-size α</strong> — the constant learning rate used by the adaptive strategy.
+          Instead of averaging all past observations equally (sample average), a constant α gives
+          exponentially more weight to recent rewards. This is what lets the agent track a moving
+          target — old observations are naturally forgotten as new ones arrive.
+        </p>
+      </div>
+
+      <div class="controls">
+        <div class="control-group"><label>Arms</label><input type="number" id="ns-arms" value="10" min="2" max="20"></div>
+        <div class="control-group"><label>Steps</label><input type="number" id="ns-steps" value="2000" min="500" max="10000" step="100"></div>
+        <div class="control-group"><label>Runs (avg)</label><input type="number" id="ns-runs" value="200" min="10" max="1000" step="10"></div>
+        <div class="control-group"><label>Drift σ</label><input type="number" id="ns-drift" value="0.01" min="0.001" max="0.1" step="0.005"></div>
+        <div class="control-group"><label>Step-size α</label><input type="number" id="ns-alpha" value="0.1" min="0.01" max="0.5" step="0.01"></div>
+        <button class="run-btn" id="ns-run">Run Simulation</button>
+      </div>
+
+      <p style="font-size:13px; color: var(--text-muted); margin-top:12px; margin-bottom:4px; font-family: var(--mono);">
+        ↓ Arm value evolution (single run) — watch how the "best" arm keeps changing
+      </p>
+      <div class="arm-evolution-container">
+        <canvas id="ns-evolution-chart"></canvas>
+        <div class="legend" id="ns-evolution-legend" style="margin-top:8px;"></div>
+      </div>
+
+      <p style="font-size:13px; color: var(--text-muted); margin-top:20px; margin-bottom:4px; font-family: var(--mono);">
+        ↓ Strategy comparison (averaged over runs)
+      </p>
+      <div class="chart-container" style="margin-top:4px;">
+        <canvas id="ns-chart"></canvas>
+        <div class="legend" id="ns-legend"></div>
+      </div>
+
+      <table class="strategy-table" id="ns-table">
+        <thead><tr><th>Strategy</th><th>Final Avg Reward</th><th>Total Reward</th><th>Tracks Optimum?</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Section 3: MDPs -->
+<section id="mdp">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label">Part III</div>
+      <h2 class="section-title">Markov Decision Processes</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        Bandits are a single-state problem. But most interesting RL problems have <strong>sequences
+        of decisions</strong> where each action changes the world. The framework for this is the
+        <strong>Markov Decision Process (MDP)</strong>.
+      </p>
+
+      <div class="math-block">
+        An MDP is defined by (S, A, P, R, γ):<br><br>
+        &nbsp;&nbsp;S = set of states &nbsp;&nbsp; A = set of actions<br>
+        &nbsp;&nbsp;P(s'|s,a) = transition probabilities &nbsp;&nbsp; R(s,a,s') = rewards<br>
+        &nbsp;&nbsp;γ = discount factor (0 ≤ γ ≤ 1)
+      </div>
+
+      <p>
+        The <strong>Markov property</strong> is key: the next state depends only on the current state
+        and action, not on history. The agent's goal is to learn a <strong>policy</strong> π(s) → a
+        that maximises the expected <strong>discounted return</strong>:
+      </p>
+
+      <div class="math-block">
+        G_t = R_{t+1} + γ R_{t+2} + γ² R_{t+3} + ...<br><br>
+        γ → 0: myopic (immediate reward only)<br>
+        γ → 1: far-sighted (values future rewards equally)
+      </div>
+
+      <p>
+        The <strong>Bellman equation</strong> connects a state's value to its successors recursively.
+        It's the foundation of Q-learning:
+      </p>
+
+      <div class="math-block">
+        Q*(s, a) = E[ R + γ × max_a' Q*(s', a') ]<br><br>
+        Q-learning update:<br>
+        &nbsp;&nbsp;Q(s, a) ← Q(s, a) + α × [ R + γ × max_a' Q(s', a') − Q(s, a) ]
+      </div>
+
+      <p>
+        That update rule is an instance of <strong>Temporal Difference (TD) learning</strong> — the idea
+        that you can learn from incomplete experience. Instead of waiting until an episode ends to find
+        out the total reward (as in Monte Carlo methods), TD updates the value estimate after every
+        single step, using the <em>difference</em> between what you expected and what you actually
+        observed plus your estimate of what comes next. The quantity
+        R + γ Q(s', a') − Q(s, a) is called the <strong>TD error</strong> — it is the surprise signal
+        that drives learning. Both Q-learning and SARSA (which you will see in the Ice Walk section)
+        are TD methods; they differ only in <em>which</em> next action they use to form the target.
+      </p>
+
+      <div class="callout">
+        <strong>Key Insight:</strong> A grid world is a perfect MDP. Each cell is a state, directions are
+        actions, transitions are deterministic, and the Markov property holds because where you should go
+        next depends only on where you are, not how you got there.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 4: Grid World -->
+<section id="gridworld">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label">Part IV</div>
+      <h2 class="section-title">Grid World &amp; Q-Learning</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        Now we apply Q-learning to an MDP. The agent navigates a grid to reach the goal (★).
+        Watch Q-values propagate backward from the goal — cells near it light up first,
+        then value information flows to every reachable state via the Bellman updates.
+      </p>
+      <p>
+        What you are watching is the <strong>credit assignment problem</strong> in action — arguably
+        the central difficulty of RL. When an agent reaches the goal after 40 steps, which of those
+        steps actually mattered? The Bellman backup solves this by propagating reward information
+        backward through the state space, one step at a time. Cells adjacent to the goal learn their
+        value first. Then cells adjacent to <em>those</em> cells inherit it, and so on, until every
+        reachable state knows roughly how far it is from reward. This is slow, and it is why the
+        early episodes look terrible — the agent is wandering in the dark until value has had time
+        to propagate back to where it starts.
+      </p>
+      <p>
+        The chart shows a <strong>smoothed 100-episode running average</strong> of steps to goal,
+        and training runs for the full specified duration so you can see the complete learning curve.
+      </p>
+    </div>
+
+    <div class="sim-card">
+      <h3>Simulation: Q-Learning Agent</h3>
+
+      <div class="prose" style="max-width:none; margin-bottom:20px;">
+        <p>
+          <strong>The environment:</strong> an N×N grid with the agent starting at the top-left corner
+          and the goal at the bottom-right. Some interior cells are randomly blocked as walls (~15% of
+          the grid). The agent can move up, right, down, or left; moving into a wall or off the edge
+          does nothing. Reaching the goal gives +10 reward. Every other step costs −0.1, which
+          encourages the agent to find the shortest path rather than wander aimlessly.
+        </p>
+      </div>
+
+      <div class="prose" style="max-width:none; margin-bottom:20px;">
+        <p>
+          <strong>Grid Size</strong> — the dimensions of the world. Larger grids have exponentially
+          more states, which means the agent needs more episodes to propagate value information from
+          the goal all the way back to the start.
+          <strong>Episodes</strong> — how many complete start-to-goal (or timeout) attempts the agent
+          gets. Each episode resets the agent to the start but preserves learned Q-values.
+        </p>
+        <p>
+          <strong>Learning rate α</strong> — how much each new experience overwrites the old Q-value
+          estimate. High α learns fast but is noisy. Low α is stable but slow to adapt. In a
+          deterministic grid like this, higher values (0.1–0.5) work well.
+          <strong>Discount γ</strong> — how much the agent values future reward relative to immediate
+          reward. At γ=0.95, a reward 20 steps away is worth 0.95^20 ≈ 36% of its face value. Lower γ
+          makes the agent myopic; higher γ makes it plan further ahead.
+          <strong>Exploration ε</strong> — the probability of taking a random action instead of the
+          greedy best. Without exploration the agent may never discover shorter paths. Too much
+          exploration wastes episodes on known-bad moves.
+        </p>
+      </div>
+
+      <div class="controls">
+        <div class="control-group"><label>Grid Size</label>
+          <select id="gw-size"><option value="5">5×5</option><option value="7" selected>7×7</option><option value="9">9×9</option></select>
+        </div>
+        <div class="control-group"><label>Episodes</label><input type="number" id="gw-episodes" value="500" min="50" max="5000" step="50"></div>
+        <div class="control-group"><label>α</label><input type="number" id="gw-alpha" value="0.1" min="0.01" max="1" step="0.01"></div>
+        <div class="control-group"><label>γ</label><input type="number" id="gw-gamma" value="0.95" min="0.5" max="0.999" step="0.01"></div>
+        <div class="control-group"><label>ε</label><input type="number" id="gw-epsilon" value="0.15" min="0.01" max="0.5" step="0.01"></div>
+        <button class="run-btn" id="gw-run">Train Agent</button>
+        <button class="run-btn" id="gw-watch" style="background:var(--accent-green);" disabled>Watch Agent</button>
+      </div>
+
+      <div class="grid-world-wrap">
+        <div>
+          <div class="grid-display" id="gw-grid"></div>
+          <div class="episode-counter" id="gw-counter">Ready to train</div>
+        </div>
+        <div>
+          <div class="chart-container" style="margin-top:0;"><canvas id="gw-chart"></canvas></div>
+          <div class="grid-stats" id="gw-stats"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 5: Ice Walk -->
+<section id="cliffwalking">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label">Part V</div>
+      <h2 class="section-title">The Ice Walk: SARSA vs Q-Learning</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        The <strong>Ice Walk</strong> is a classic RL benchmark that illustrates the difference between
+        <strong>on-policy</strong> (SARSA) and <strong>off-policy</strong> (Q-learning) methods. The agent
+        must cross a frozen ridge from Start (S) to Goal (G) along the bottom of a 4×12 grid. Between
+        them runs a stretch of thin ice — step on it and the ice cracks, sending the agent plummeting
+        back to the start with a brutal −100 penalty. Every safe step costs −1.
+      </p>
+      <p>
+        <strong>Q-learning</strong> discovers the shortest path — right along the ice edge — because
+        that is objectively the fastest route. But during training, random exploratory steps sometimes
+        send the agent onto the thin ice, accumulating massive penalties.
+        <strong>SARSA</strong> learns a safer path along the top of the grid because it evaluates the
+        policy it is actually following, including the exploratory mistakes it knows it will make. It
+        "prices in" its own clumsiness.
+      </p>
+
+      <div class="math-block">
+        Q-learning: &nbsp; Q(s,a) ← Q(s,a) + α[R + γ max_a' Q(s',a') − Q(s,a)]<br><br>
+        SARSA: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Q(s,a) ← Q(s,a) + α[R + γ Q(s',a') − Q(s,a)]<br><br>
+        Difference: SARSA uses the actual next action a', Q-learning uses the best.
+      </div>
+
+      <div class="callout">
+        <strong>Key Insight:</strong> Q-learning says "I know the best path even if I stumble during
+        training." SARSA says "I'd rather take a safe path because I know I'll make mistakes."
+      </div>
+    </div>
+
+    <div class="sim-card">
+      <h3>Simulation: On-Policy vs Off-Policy</h3>
+
+      <div class="prose" style="max-width:none; margin-bottom:20px;">
+        <p>
+          <strong>The environment:</strong> a 4×12 grid. The agent starts at the bottom-left cell. The
+          goal is the bottom-right cell. The entire bottom row between them (10 cells) is thin ice —
+          stepping on any of those cells gives −100 reward and teleports the agent back to the start.
+          All other transitions cost −1. The episode ends when the agent reaches the goal.
+        </p>
+      </div>
+
+      <div class="prose" style="max-width:none; margin-bottom:20px;">
+        <p>
+          <strong>Episodes</strong> — the number of complete attempts. Both SARSA and Q-learning
+          train on the same number of episodes so the comparison is fair.
+          <strong>Learning rate α</strong> — set higher here (default 0.5) than in the grid world
+          because the cliff walking environment is small and deterministic, so aggressive updates
+          converge faster.
+          <strong>Discount γ</strong> — set to 1.0 by default because there is no reason to discount
+          future steps in this task; every step has equal weight and the episodes are short.
+          <strong>Exploration ε</strong> — this is the parameter that creates the interesting
+          difference between SARSA and Q-learning. SARSA knows it will take random actions with
+          probability ε, so it avoids states where a random step would be catastrophic. Q-learning
+          ignores the exploration policy when evaluating states, so it values the ice-edge path at
+          its theoretical optimum.
+        </p>
+      </div>
+
+      <div class="controls">
+        <div class="control-group"><label>Episodes</label><input type="number" id="cliff-episodes" value="500" min="100" max="5000" step="50"></div>
+        <div class="control-group"><label>α</label><input type="number" id="cliff-alpha" value="0.5" min="0.01" max="1" step="0.01"></div>
+        <div class="control-group"><label>γ</label><input type="number" id="cliff-gamma" value="1.0" min="0.5" max="1" step="0.01"></div>
+        <div class="control-group"><label>ε</label><input type="number" id="cliff-epsilon" value="0.1" min="0.01" max="0.5" step="0.01"></div>
+        <button class="run-btn" id="cliff-run">Train Both Agents</button>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="cliff-chart"></canvas>
+        <div class="legend" id="cliff-legend"></div>
+      </div>
+
+      <div class="path-comparison">
+        <div class="path-card">
+          <h4 style="color: var(--accent-green);">SARSA — The Safe Path</h4>
+          <div class="cliff-grid-display" id="cliff-grid-sarsa"></div>
+          <p style="margin-top:8px;">On-policy: avoids the ice edge, accounting for exploration mistakes.</p>
+          <button class="run-btn" id="cliff-watch-sarsa" style="background:var(--accent-green);margin-top:8px;font-size:12px;padding:6px 14px;" disabled>Watch SARSA</button>
+        </div>
+        <div class="path-card">
+          <h4 style="color: var(--accent-orange);">Q-Learning — The Optimal Path</h4>
+          <div class="cliff-grid-display" id="cliff-grid-qlearn"></div>
+          <p style="margin-top:8px;">Off-policy: learns the shortest path along the ice — optimal but risky.</p>
+          <button class="run-btn" id="cliff-watch-qlearn" style="background:var(--accent-orange);margin-top:8px;font-size:12px;padding:6px 14px;" disabled>Watch Q-Learning</button>
+        </div>
+      </div>
+
+      <div class="grid-stats" id="cliff-stats" style="margin-top:16px;"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Closing: Where to go from here -->
+<section id="closing">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label">What We Left Out</div>
+      <h2 class="section-title">Where Does RL Go From Here?</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        Everything in this tutorial is <strong>tabular</strong> — every state gets its own row in a
+        table of Q-values. That works for a 7×7 grid (49 states) or a 4×12 cliff (48 states). It does
+        not work for chess (roughly 10<sup>47</sup> states), Go (10<sup>170</sup>), a camera image
+        (millions of pixels), or a self-driving car's sensor feed. The state space is simply too large
+        to visit every entry even once, let alone update it thousands of times.
+      </p>
+      <p>
+        The solution is <strong>function approximation</strong> — replacing the Q-table with a function
+        that generalises across similar states. A neural network, for instance, can take a raw image as
+        input and output Q-values for every action, sharing learned features across states it has never
+        seen before. This is where deep learning enters: <strong>Deep Q-Networks (DQN)</strong> combine
+        the Q-learning update you saw above with a convolutional neural network. It is what let an agent
+        learn to play Atari games from raw pixels in 2015.
+      </p>
+      <p>
+        Beyond value-based methods, <strong>policy gradient</strong> methods learn the policy directly —
+        adjusting the probability of actions based on how much reward they lead to, without ever
+        maintaining a Q-table. Algorithms like PPO and TRPO belong here, and they are the workhorses
+        behind RLHF (reinforcement learning from human feedback), which is how large language models are
+        fine-tuned to be more helpful and less harmful.
+      </p>
+      <p>
+        There is also <strong>model-based RL</strong>, where the agent learns a model of the environment
+        itself — predicting what will happen next — and uses that model to plan ahead rather than
+        learning purely from trial and error. AlphaZero is a model-based system: it knows the rules
+        of the game and searches forward through possible futures.
+      </p>
+      <p>
+        None of these methods are covered here, and that is deliberate. They are built on top of the
+        ideas you just worked through — value estimation, the Bellman equation, TD learning, exploration,
+        on-policy versus off-policy. If those ideas are solid, everything else is a variation on theme.
+        If they are not, no amount of neural network architecture will save you.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    An interactive introduction to Reinforcement Learning — built with vanilla JavaScript, no deep learning required.
+  </div>
+</footer>
+
+<!-- Single module entry point — no globals, clean imports -->
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
