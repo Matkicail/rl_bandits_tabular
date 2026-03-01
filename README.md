@@ -78,6 +78,3 @@ This repo accompanies a Medium post walking through the concepts and results in 
 
 [placeholder-link]
 
-## Licence
-
-MIT
